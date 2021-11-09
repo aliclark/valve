@@ -1,38 +1,82 @@
 import { nextTick } from 'process'
 import { Readable } from 'stream'
 
-export interface ReadablePipe {
+interface ReadablePipePipeJointContract {
+  // To be invoked by a PipeJoint once it has been constructed.
+  // The ReadablePipe should then begin to signal to `joint` when it has readable data.
   start(joint: PipeJoint): void
+}
+
+interface ReadablePipeContract {
+  // The quantity or readable bytes, or -1 if unknown, and potentially >0
   readable(): number
+  // Whether or not the consumer of the data can assume the buffer is theirs from now on
   acquirable(): boolean
-  // This is liable to return 0 length if not acquirable, or async work is needed
+  // Return a buffer containing available data, up to `size` bytes
+  // `size` may be omitted or set to -1 to indicate as many bytes as possible.
+  // `read()` liable to return a 0 length buffer if it's not acquirable, or async work is required
   read(size?: number): Buffer
+  // The consumer invokes this method with a destination buffer, offset, and the amount of data to write
+  // The callback is invoked with the number of bytes actually written into the destination buffer.
+  // Nb. the callback may be invoked by readOnto synchronously, during the invocation.
   readOnto(
     target: Buffer,
     offset: number,
     size: number,
     callback: (amount: number) => void,
   ): void
+  // The consumer invokes this method to indicate that it has finished with the data
+  // If the buffer was not acquirable, the consumer no longer use it after this point.
   callback(): void
 }
 
-export interface WritablePipe {
+export interface ReadablePipe
+  extends ReadablePipeContract,
+    ReadablePipePipeJointContract {}
+
+interface WritablePipePipeJointContract {
+  // A constant indicating a value 1 greater than the block size which the writable pipe
+  // would typically accept without first deciding to perform buffering.
+  // When determining a buffer size, `writableHighWaterMark - 1` is usually a good choice.
   readonly writableHighWaterMark: number
+}
+
+interface WritablePipeContract {
+  // This method is invoked to provide data.
+  // `callback` will only be invoked once the data is fully processed and written.
+  // Until that point, the caller should refrain from using the buffer in any way.
+  // Passing `undefined` as the second argument signals that the target buffer is acquirable,
+  // ie. the receiver may assume ownership of the buffer from now on.
   write(target: Buffer, callback: () => void): void
-  // use undefined as the second argument to signal the target is acquirable
   write(target: Buffer, _: undefined, callback: () => void): void
+  // This method is invoked to indicate no more data will be provided.
   end(): void
 }
 
-export interface PipeJoint {
-  readonly blockSize: number
-  // invoked by the program to start writing of data to the write-side
-  resume(): void
-  // invoked by the read-side when new data becomes available
+export interface WritablePipe
+  extends WritablePipeContract,
+    WritablePipePipeJointContract {}
+
+interface PipeJointReadablePipeContract {
+  // Invoked by the read-side when new data becomes available.
+  // If it is unknown how much data is available, the `size` argument may be -1
+  // `acquirable` indicates whether the consumer may assume sole ownership of the buffer.
+  // If true, then calls to read() on ReadablePipe should return the buffer reference without copying,
+  // and similarly read(n) may return a Node Buffer slice which is not copied.
   readable(size: number, acquirable: boolean): void
-  // invoked by the read-side once all data is consumed and no more data is available
+  // Invoked by the read-side once all of its data has been consumed and no more data will be available.
+  // This should be propagated by the PipeJoint to the write-side, unless configured otherwise.
   end(): void
 }
+
+interface PipeJointContract {
+  // Invoked by the program to begin the writing of any data and end() the write-side if applicable.
+  resume(): void
+}
+
+export interface PipeJoint
+  extends PipeJointContract,
+    PipeJointReadablePipeContract {}
 
 export interface Transformer {
   transform(
@@ -46,7 +90,7 @@ export interface Transformer {
   ): void
 }
 
-export class PassThroughTransformer implements Transformer {
+class PassThroughTransformer implements Transformer {
   transform(
     source: Buffer,
     target: Buffer,

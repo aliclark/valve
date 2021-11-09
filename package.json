@@ -1,12 +1,17 @@
 {
   "name": "@aliclark/valve",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
+  "main": "./valve.js",
   "typings": "./valve.d.ts",
-  "repository": {"url": "https://github.com/aliclark/valve"},
+  "repository": {
+    "url": "https://github.com/aliclark/valve"
+  },
   "scripts": {
+    "prettier": "prettier -w 'src/**/*.ts'",
     "build": "yarn tsc",
-    "publish:package": "yarn build && cp package.json ./dist/ && yarn publish --access public dist"
+    "test": "yarn jest",
+    "publish:package": "yarn build && cp package.json ./dist/ && yarn publish --tag --access public dist"
   },
   "devDependencies": {
     "@aliclark/config": "^0.1.0",
@@ -20,6 +25,7 @@
     "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-prettier": "^4.0.0",
     "jest": "^27.3.1",
+    "prettier": "^2.4.1",
     "ts-jest": "^27.0.7",
     "typescript": "^4.4.4"
   },
