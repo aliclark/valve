@@ -1,0 +1,27 @@
+{
+  "name": "@aliclark/valve",
+  "version": "0.1.0",
+  "license": "MIT",
+  "typings": "./valve.d.ts",
+  "repository": {"url": "https://github.com/aliclark/valve"},
+  "scripts": {
+    "build": "yarn tsc",
+    "publish:package": "yarn build && cp package.json ./dist/ && yarn publish --access public dist"
+  },
+  "devDependencies": {
+    "@aliclark/config": "^0.1.0",
+    "@babel/core": "^7.16.0",
+    "@babel/preset-env": "^7.16.0",
+    "@babel/preset-typescript": "^7.16.0",
+    "@types/jest": "^27.0.2",
+    "@types/node": "^16.11.7",
+    "babel": "^6.23.0",
+    "babel-jest": "^27.3.1",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-prettier": "^4.0.0",
+    "jest": "^27.3.1",
+    "ts-jest": "^27.0.7",
+    "typescript": "^4.4.4"
+  },
+  "dependencies": {}
+}
