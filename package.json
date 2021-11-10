@@ -11,7 +11,7 @@
     "prettier": "prettier -w 'src/**/*.ts'",
     "build": "yarn tsc",
     "test": "yarn jest",
-    "publish:package": "yarn build && cp package.json ./dist/ && yarn publish --access public dist"
+    "publish:package": "yarn version && yarn build && cp package.json ./dist/ && yarn publish --access public dist"
   },
   "devDependencies": {
     "@aliclark/config": "^0.1.0",
