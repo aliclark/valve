@@ -4,9 +4,9 @@ import { Valve, ReadableStreamPipe } from './valve'
 describe('Valve', () => {
   // TODO: Get to 100% logic coverage :-)
 
-  it('works as a pass-through', (done) => {
+  it('works as a pass-through', done => {
     const readSide = new ReadableStreamPipe(
-      Readable.from([Buffer.from('abc')], { objectMode: false }),
+      Readable.from([Buffer.from('abc')], { objectMode: false })
     )
     const writeSide = new PassThrough()
     const socket = new Valve(readSide, writeSide)

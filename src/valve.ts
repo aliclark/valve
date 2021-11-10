@@ -23,7 +23,7 @@ interface ReadablePipeContract {
     target: Buffer,
     offset: number,
     size: number,
-    callback: (amount: number) => void,
+    callback: (amount: number) => void
   ): void
   // The consumer invokes this method to indicate that it has finished with the data
   // If the buffer was not acquirable, the consumer no longer use it after this point.
@@ -86,7 +86,7 @@ export interface Transformer {
     targetEnd: number,
     sourceStart: number,
     sourceEnd: number,
-    callback: (consumed: number, written: number) => void,
+    callback: (consumed: number, written: number) => void
   ): void
 }
 
@@ -98,7 +98,7 @@ class PassThroughTransformer implements Transformer {
     targetEnd: number,
     sourceStart: number,
     sourceEnd: number,
-    callback: (consumed: number, written: number) => void,
+    callback: (consumed: number, written: number) => void
   ): void {
     const amount = Math.min(targetEnd - targetStart, sourceEnd - sourceStart)
     source.copy(target, targetStart, sourceStart, sourceStart + amount)
@@ -151,7 +151,7 @@ export class TransformerPipe implements ReadablePipe, WritablePipe {
     target: Buffer,
     offset: number,
     askSize: number,
-    callback: (amount: number) => void,
+    callback: (amount: number) => void
   ): void {
     const buffer = this.buffer
     const bufferOffset = this.bufferOffset
@@ -174,7 +174,7 @@ export class TransformerPipe implements ReadablePipe, WritablePipe {
         this.reset()
 
         callback(written)
-      },
+      }
     )
   }
 
@@ -287,7 +287,7 @@ export class ReadableStreamPipe implements ReadablePipe {
     target: Buffer,
     offset: number,
     size: number,
-    callback: (amount: number) => void,
+    callback: (amount: number) => void
   ): void {
     const buffer = this.buffer
     const bufferOffset = this.bufferOffset
@@ -416,7 +416,7 @@ export class Valve implements PipeJoint {
   constructor(
     private readonly readSide: ReadablePipe,
     private readonly writeSide: WritablePipe,
-    options?: ValveOptions,
+    options?: ValveOptions
   ) {
     const { end = true, endCallback = () => {} } = options ?? {}
     this.endWriter = end
@@ -499,7 +499,7 @@ export class Valve implements PipeJoint {
         readOntoBuffer,
         readOntoBufferOffset,
         bufferOffset,
-        (amount) => {
+        amount => {
           if (amount === bufferOffset) {
             if (this.writing) {
               this.filledBuffers.push(readOntoBuffer)
@@ -511,7 +511,7 @@ export class Valve implements PipeJoint {
               this.readOntoBuffer = readOntoBuffer2
               this.writeFromBuffer = readOntoBuffer
 
-              readSide.readOnto(readOntoBuffer2, 0, blockSize, (amount2) => {
+              readSide.readOnto(readOntoBuffer2, 0, blockSize, amount2 => {
                 if (amount2 === blockSize) {
                   this.filledBuffers.push(readOntoBuffer2)
                   this.readOntoBuffer = this.acquireBlockBuffer()
@@ -533,7 +533,7 @@ export class Valve implements PipeJoint {
             }
             readSide.callback()
           }
-        },
+        }
       )
     } else {
       var totalBufferData = readOntoBufferOffset + bufferLength
@@ -543,7 +543,7 @@ export class Valve implements PipeJoint {
           readOntoBuffer,
           readOntoBufferOffset,
           bufferOffset,
-          (_) => {
+          _ => {
             var readOntoBuffer2: Buffer
 
             if (totalBufferData >= blockSize + blockSize) {
@@ -555,7 +555,7 @@ export class Valve implements PipeJoint {
 
               readOntoBuffer2 = this.acquireBlockBuffer()
               var bufferLength2 = bufferLength - bufferOffset
-              readSide.readOnto(readOntoBuffer2, 0, bufferLength2, (_) => {
+              readSide.readOnto(readOntoBuffer2, 0, bufferLength2, _ => {
                 this.readOntoBuffer = readOntoBuffer2
                 this.readOntoBufferOffset = bufferLength2
 
@@ -576,7 +576,7 @@ export class Valve implements PipeJoint {
 
               var bufferLength2 = bufferLength - bufferOffset
 
-              readSide.readOnto(readOntoBuffer2, 0, bufferLength2, (_) => {
+              readSide.readOnto(readOntoBuffer2, 0, bufferLength2, _ => {
                 this.readOntoBuffer = readOntoBuffer2
                 this.readOntoBufferOffset = bufferLength2
 
@@ -585,14 +585,14 @@ export class Valve implements PipeJoint {
                 }
               })
             }
-          },
+          }
         )
       } else {
         readSide.readOnto(
           readOntoBuffer,
           readOntoBufferOffset,
           bufferLength,
-          (_) => {
+          _ => {
             if (this.writing) {
               this.readOntoBufferOffset = totalBufferData
             } else {
@@ -603,7 +603,7 @@ export class Valve implements PipeJoint {
             }
 
             readSide.callback()
-          },
+          }
         )
       }
     }

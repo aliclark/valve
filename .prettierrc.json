@@ -2,6 +2,7 @@
   "tabWidth": 2,
   "semi": false,
   "singleQuote": true,
-  "trailingComma": "all",
-  "proseWrap": "preserve"
+  "trailingComma": "es5",
+  "proseWrap": "preserve",
+  "arrowParens": "avoid"
 }
