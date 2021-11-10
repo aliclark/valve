@@ -90,6 +90,8 @@ export interface Transformer {
   ): void
 }
 
+const emptyBuffer = Buffer.allocUnsafe(0)
+
 class PassThroughTransformer implements Transformer {
   transform(
     source: Buffer,
@@ -109,7 +111,6 @@ class PassThroughTransformer implements Transformer {
 export const passThroughTransformer = new PassThroughTransformer()
 
 export class TransformerPipe implements ReadablePipe, WritablePipe {
-  private static readonly emptyBuffer = Buffer.allocUnsafe(0)
 
   readonly writableHighWaterMark: number
 
@@ -117,10 +118,10 @@ export class TransformerPipe implements ReadablePipe, WritablePipe {
   private writeFinished: Function = () => {}
 
   private remainderIsAcquirable = false
-  private remainder = TransformerPipe.emptyBuffer
+  private remainder = emptyBuffer
   private remainderOffset = 0
 
-  private buffer = TransformerPipe.emptyBuffer
+  private buffer = emptyBuffer
   private bufferOffset = 0
 
   private flushing = false
@@ -140,7 +141,7 @@ export class TransformerPipe implements ReadablePipe, WritablePipe {
   }
 
   readable(): number {
-    return -1
+    return this.bufferOffset !== this.buffer.byteLength ? -1 : 0
   }
 
   acquirable(): boolean {
@@ -179,11 +180,11 @@ export class TransformerPipe implements ReadablePipe, WritablePipe {
   }
 
   read() {
-    return TransformerPipe.emptyBuffer
+    return emptyBuffer
   }
 
   private reset() {
-    this.buffer = TransformerPipe.emptyBuffer
+    this.buffer = emptyBuffer
     this.bufferOffset = 0
 
     if (this.flushing) {
@@ -214,7 +215,7 @@ export class TransformerPipe implements ReadablePipe, WritablePipe {
         this.remainder.slice(this.remainderOffset),
         target,
       ])
-      this.remainder = TransformerPipe.emptyBuffer
+      this.remainder = emptyBuffer
       this.remainderOffset = 0
     } else {
       this.buffer = target
@@ -241,11 +242,10 @@ export class TransformerPipe implements ReadablePipe, WritablePipe {
 }
 
 export class ReadableStreamPipe implements ReadablePipe {
-  private static readonly emptyBuffer = Buffer.allocUnsafe(0)
 
   private joint: PipeJoint | void = undefined
 
-  private buffer = ReadableStreamPipe.emptyBuffer
+  private buffer = emptyBuffer
   private bufferOffset = 0
 
   private hasReadable = false
@@ -323,7 +323,7 @@ export class ReadableStreamPipe implements ReadablePipe {
   }
 
   private reset() {
-    this.buffer = ReadableStreamPipe.emptyBuffer
+    this.buffer = emptyBuffer
     this.bufferOffset = 0
 
     if (this.flushing) {
@@ -381,17 +381,16 @@ export interface ValveOptions {
 }
 
 export class Valve implements PipeJoint {
-  private static readonly emptyBuffer = Buffer.allocUnsafe(0)
 
   readonly blockSize: number
 
   private readonly endWriter: boolean
   private readonly endCallback: () => void
 
-  private readOntoBuffer = Valve.emptyBuffer
+  private readOntoBuffer = emptyBuffer
   private readOntoBufferOffset = 0
 
-  private writeFromBuffer = Valve.emptyBuffer
+  private writeFromBuffer = emptyBuffer
   private remainder: Buffer | void = undefined
 
   private readonly filledBuffers: Buffer[] = []
@@ -402,7 +401,7 @@ export class Valve implements PipeJoint {
 
   private resumed = false
   private resumeAcquirable = false
-  private resumeWith = Valve.emptyBuffer
+  private resumeWith = emptyBuffer
 
   private writing = false
   private flushing = false
@@ -428,7 +427,7 @@ export class Valve implements PipeJoint {
     const buffer = this.resumeWith
 
     if (buffer.byteLength !== 0) {
-      this.resumeWith = Valve.emptyBuffer
+      this.resumeWith = emptyBuffer
       this.performWrite(buffer, this.resumeAcquirable)
     } else if (this.flushing) {
       this.close()
