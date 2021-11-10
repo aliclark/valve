@@ -467,8 +467,7 @@ export class Valve implements PipeJoint {
         if (bufferLength === blockSize) {
           if (!this.writing) {
             this.write(buf, true)
-            this.freeBlockBuffers.push(this.writeFromBuffer)
-            this.writeFromBuffer = buf
+            this.replaceWriteBuffer(buf)
             readSide.callback()
           } else {
             this.filledBuffers.push(buf)
@@ -628,6 +627,13 @@ export class Valve implements PipeJoint {
     return Buffer.allocUnsafe(this.blockSize)
   }
 
+  private replaceWriteBuffer(buffer: Buffer): void {
+    if (this.freeBlockBuffers.length < 8) {
+      this.freeBlockBuffers.push(this.writeFromBuffer)
+    }
+    this.writeFromBuffer = buffer
+  }
+
   private write(buffer: Buffer, readBuffered = false) {
     this.writing = true
 
@@ -665,8 +671,7 @@ export class Valve implements PipeJoint {
       }
 
       this.write(filledBuffer)
-      this.freeBlockBuffers.push(this.writeFromBuffer)
-      this.writeFromBuffer = filledBuffer
+      this.replaceWriteBuffer(filledBuffer)
 
       if (unfilled) {
         this.readSide.callback()
