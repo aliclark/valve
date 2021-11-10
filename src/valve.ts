@@ -241,6 +241,10 @@ export class TransformerPipe implements ReadablePipe, WritablePipe {
   }
 }
 
+// In future it may make sense to create a "unix-socket" package
+// that allows direct access to the underlying connect()/read()/write() syscalls,
+// while still adding the socket descriptor to the event loop for readable events
+
 export class ReadableStreamPipe implements ReadablePipe {
 
   private joint: PipeJoint | void = undefined
