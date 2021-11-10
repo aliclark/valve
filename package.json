@@ -1,6 +1,6 @@
 {
   "name": "@aliclark/valve",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "license": "MIT",
   "main": "./valve.js",
   "typings": "./valve.d.ts",
