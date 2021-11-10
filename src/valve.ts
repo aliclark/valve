@@ -206,7 +206,6 @@ export class TransformerPipe implements ReadablePipe, WritablePipe {
   write(target: Buffer, callback: () => void, _?: undefined): void
   write(target: Buffer, _: undefined, callback: () => void): void
   write(target: Buffer, a: unknown, b: unknown): void {
-    console.log(`transformer.write(${target.byteLength})`)
 
     var isAcquirable = false
 
@@ -233,7 +232,6 @@ export class TransformerPipe implements ReadablePipe, WritablePipe {
   }
 
   end(): void {
-    console.log('transformer.end()')
     if (this.buffer.byteLength !== 0 || this.joint === undefined) {
       this.flushing = true
     } else {
@@ -341,19 +339,17 @@ export class ReadableStreamPipe implements ReadablePipe {
     const buffer = this.readSide.read()
 
     if (buffer !== null) {
-      console.log(`readableStream.read() => ${buffer.byteLength}`)
       this.buffer = buffer
       this.bufferOffset = 0
 
       this.joint?.readable(buffer.byteLength, true)
+
     } else {
-      console.log(`readableStream.read() => null`)
       this.hasReadable = false
     }
   }
 
   private streamReadable() {
-    console.log(`readableStream event:readable`)
     const readable = this.readable()
     this.hasReadable = true
 
@@ -365,8 +361,6 @@ export class ReadableStreamPipe implements ReadablePipe {
   }
 
   private streamEnd() {
-    console.log(`readableStream event:end`)
-
     const readable = this.readable()
 
     if (readable !== 0 || this.joint === undefined) {
