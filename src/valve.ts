@@ -26,7 +26,7 @@ interface ReadablePipeContract {
     callback: (amount: number) => void
   ): void
   // The consumer invokes this method to indicate that it has finished with the data
-  // If the buffer was not acquirable, the consumer no longer use it after this point.
+  // If the buffer was not acquirable, the consumer must not use it after this point.
   callback(): void
 }
 
@@ -110,11 +110,70 @@ class PassThroughTransformer implements Transformer {
 
 export const passThroughTransformer = new PassThroughTransformer()
 
-export class TransformerPipe implements ReadablePipe, WritablePipe {
+// This handles the boilerplace relating to the joint
+export class ReadablePipeBase implements ReadablePipe {
+  private flushing = false
+  private joint: PipeJoint | void = undefined
 
+  constructor(private readonly readFinished: () => void = () => {}) {}
+
+  readOnto(
+    _target: Buffer,
+    _offset: number,
+    _size: number,
+    _callback: (amount: number) => void
+  ): void {
+    _callback(0)
+  }
+
+  read(): Buffer {
+    return emptyBuffer
+  }
+
+  start(joint: PipeJoint) {
+    this.joint = joint
+    const readable = this.readable
+    if (readable !== 0) {
+      joint.readable(readable, this.acquirable)
+    } else if (this.flushing) {
+      joint.end()
+    }
+  }
+
+  get readable() {
+    return 0
+  }
+
+  get acquirable() {
+    return false
+  }
+
+  callback() {
+    this.readFinished()
+  }
+
+  protected afterRead() {
+    if (this.flushing && this.readable === 0) {
+      nextTick(() => this.joint?.end())
+    }
+  }
+
+  protected afterWrite() {
+    this.joint?.readable(this.readable, this.acquirable)
+  }
+
+  end() {
+    if (this.joint === undefined || this.readable !== 0) {
+      this.flushing = true
+    } else {
+      this.joint.end()
+    }
+  }
+}
+
+export class TransformerPipe extends ReadablePipeBase implements WritablePipe {
   readonly writableHighWaterMark: number
 
-  private joint: PipeJoint | void = undefined
   private writeFinished: Function = () => {}
 
   private remainderIsAcquirable = false
@@ -124,28 +183,17 @@ export class TransformerPipe implements ReadablePipe, WritablePipe {
   private buffer = emptyBuffer
   private bufferOffset = 0
 
-  private flushing = false
-
+  // TODO: Allow to define a maximum minimum record size (default 1 byte? or required?)
+  // That would mean we require at least that amount of writable buffer space sometimes.
+  // This implementation might hint with -512 that that is the minimum buffer size
+  // Or should that be assumed to be the blockSize?
   constructor(private readonly transformer: Transformer, blockSize: number) {
+    super()
     this.writableHighWaterMark = blockSize + 1
   }
 
-  start(joint: PipeJoint): void {
-    this.joint = joint
-
-    if (this.bufferOffset !== this.buffer.byteLength) {
-      joint.readable(-1, false)
-    } else if (this.flushing) {
-      joint.end()
-    }
-  }
-
-  readable(): number {
+  get readable(): number {
     return this.bufferOffset !== this.buffer.byteLength ? -1 : 0
-  }
-
-  acquirable(): boolean {
-    return false
   }
 
   readOnto(
@@ -187,9 +235,7 @@ export class TransformerPipe implements ReadablePipe, WritablePipe {
     this.buffer = emptyBuffer
     this.bufferOffset = 0
 
-    if (this.flushing) {
-      nextTick(() => this.joint!.end())
-    }
+    this.afterRead()
   }
 
   callback() {
@@ -207,7 +253,6 @@ export class TransformerPipe implements ReadablePipe, WritablePipe {
   write(target: Buffer, callback: () => void, _?: undefined): void
   write(target: Buffer, _: undefined, callback: () => void): void
   write(target: Buffer, a: unknown, b: unknown): void {
-
     var isAcquirable = false
 
     if (this.remainderOffset !== this.remainder.byteLength) {
@@ -229,15 +274,7 @@ export class TransformerPipe implements ReadablePipe, WritablePipe {
     }
     this.remainderIsAcquirable = isAcquirable
 
-    this.joint?.readable(-1, false)
-  }
-
-  end(): void {
-    if (this.buffer.byteLength !== 0 || this.joint === undefined) {
-      this.flushing = true
-    } else {
-      this.joint!.end()
-    }
+    this.afterWrite()
   }
 }
 
@@ -245,19 +282,16 @@ export class TransformerPipe implements ReadablePipe, WritablePipe {
 // that allows direct access to the underlying connect()/read()/write() syscalls,
 // while still adding the socket descriptor to the event loop for readable events
 
-export class ReadableStreamPipe implements ReadablePipe {
-
-  private joint: PipeJoint | void = undefined
-
+export class ReadableStreamPipe extends ReadablePipeBase {
   private buffer = emptyBuffer
   private bufferOffset = 0
 
   private hasReadable = false
-  private flushing = false
 
   constructor(private readonly readSide: Readable, readable = false) {
+    super()
     readSide.addListener('readable', () => this.streamReadable())
-    readSide.addListener('end', () => this.streamEnd())
+    readSide.addListener('end', () => this.end())
 
     if (readable) {
       this.hasReadable = true
@@ -265,23 +299,11 @@ export class ReadableStreamPipe implements ReadablePipe {
     }
   }
 
-  start(joint: PipeJoint) {
-    this.joint = joint
-
-    const readable = this.readable()
-
-    if (readable !== 0) {
-      joint.readable(readable, true)
-    } else if (this.flushing) {
-      joint.end()
-    }
-  }
-
-  readable() {
+  get readable() {
     return this.buffer.byteLength - this.bufferOffset
   }
 
-  acquirable() {
+  get acquirable() {
     return true
   }
 
@@ -296,10 +318,8 @@ export class ReadableStreamPipe implements ReadablePipe {
     const end = bufferOffset + size
     buffer.copy(target, offset, bufferOffset, end)
 
-    if (end === buffer.byteLength) {
+    if ((this.bufferOffset = end) === buffer.byteLength) {
       this.reset()
-    } else {
-      this.bufferOffset = end
     }
 
     callback(size)
@@ -316,10 +336,8 @@ export class ReadableStreamPipe implements ReadablePipe {
       const end = bufferOffset + size
       const slice = buffer.slice(bufferOffset, end)
 
-      if (end === buffer.byteLength) {
+      if ((this.bufferOffset = end) === buffer.byteLength) {
         this.reset()
-      } else {
-        this.bufferOffset = end
       }
 
       return slice
@@ -330,9 +348,7 @@ export class ReadableStreamPipe implements ReadablePipe {
     this.buffer = emptyBuffer
     this.bufferOffset = 0
 
-    if (this.flushing) {
-      nextTick(() => this.joint!.end())
-    }
+    this.afterRead()
   }
 
   callback() {
@@ -340,37 +356,21 @@ export class ReadableStreamPipe implements ReadablePipe {
       return
     }
 
-    const buffer = this.readSide.read()
+    this.bufferOffset = 0
 
-    if (buffer !== null) {
-      this.buffer = buffer
-      this.bufferOffset = 0
-
-      this.joint?.readable(buffer.byteLength, true)
-
+    if ((this.buffer = this.readSide.read()) !== null) {
+      this.afterWrite()
     } else {
+      this.buffer = emptyBuffer
       this.hasReadable = false
     }
   }
 
   private streamReadable() {
-    const readable = this.readable()
     this.hasReadable = true
 
-    if (readable !== 0) {
-      return
-    }
-
-    this.callback()
-  }
-
-  private streamEnd() {
-    const readable = this.readable()
-
-    if (readable !== 0 || this.joint === undefined) {
-      this.flushing = true
-    } else {
-      this.joint!.end()
+    if (this.readable === 0) {
+      this.callback()
     }
   }
 }
@@ -385,7 +385,6 @@ export interface ValveOptions {
 }
 
 export class Valve implements PipeJoint {
-
   readonly blockSize: number
 
   private readonly endWriter: boolean
