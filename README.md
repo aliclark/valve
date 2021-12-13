@@ -1,5 +1,9 @@
 # valve
 
+*Edit: with io_uring around the corner ( https://www.scylladb.com/2020/05/05/how-io_uring-and-ebpf-will-revolutionize-programming-in-linux/ and https://github.com/libuv/libuv/issues/1947 ) it no longer makes sense to fuss over buffering prior to write as in the past, therefore valve is not recommended to be used.*
+
+## Original
+
 An extremely low-overhead alternative to pipe() in Node.js
 
 * Implements backpressure
